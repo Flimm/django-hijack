@@ -1,7 +1,7 @@
+import django
 from django import template
 from django.utils.safestring import mark_safe
 from django.template.loader import render_to_string
-from django.template import RequestContext
 from compat import import_string
 
 from hijack import settings as hijack_settings
@@ -9,15 +9,17 @@ from hijack import settings as hijack_settings
 register = template.Library()
 
 
-# Deprecated. Use the template tag below
 @register.filter
 def hijackNotification(request):
+    """
+    Deprecated. Use the template tag "hijack_notification" below
+    """
     return _render_hijack_notification(request)
 
 
 @register.simple_tag(takes_context=True)
 def hijack_notification(context):
-    request = context['request']
+    request = context.get('request')
     return _render_hijack_notification(request)
 
 
@@ -27,13 +29,16 @@ def _render_hijack_notification(request):
     else:
         template_name = 'hijack/notifications.html'
     ans = ''
-    if (hijack_settings.HIJACK_DISPLAY_WARNING and
-            request and
-            request.session.get('is_hijacked_user', False) and
-            request.session.get('display_hijack_warning', False)
-        ):
-        ans = render_to_string(template_name, {},
-                               context_instance=RequestContext(request))
+    if request is not None and all([
+        hijack_settings.HIJACK_DISPLAY_WARNING,
+        request.session.get('is_hijacked_user', False),
+        request.session.get('display_hijack_warning', False),
+    ]):
+        if django.VERSION < (1, 8):
+            from django.template import RequestContext
+            ans = render_to_string(template_name, context_instance=RequestContext(request))
+        else:
+            ans = render_to_string(template_name, request=request)
     return mark_safe(ans)
 
 
@@ -41,3 +46,8 @@ def _render_hijack_notification(request):
 def can_hijack(hijacker, hijacked):
     check_authorization = import_string(hijack_settings.HIJACK_AUTHORIZATION_CHECK)
     return check_authorization(hijacker, hijacked)
+
+
+@register.filter
+def is_hijacked(request):
+    return request.session.get('is_hijacked_user', False)

@@ -18,7 +18,7 @@ Django Hijack gives you a variety of options to extend the group of authorized u
 Set `HIJACK_AUTHORIZE_STAFF = True` in your project settings to authorize staff members to hijack non-staff users.
 If you want staff to be able to hijack other staff as well, enable `HIJACK_AUTHORIZE_STAFF_TO_HIJACK_STAFF`.
 
-Note that there is no option to authorize staff members to hijack superusers as this would undermine the distinction between staff users and superusers.
+Note that there is no option to authorize staff members to hijack superusers. This would make the distinction between staff users and superusers useless.
 
 ## Custom authorization function
 Advanced Django developers might want to define their own check whether a user may hijack another user. This can be achieved by 
@@ -46,6 +46,12 @@ def my_authorization_check(hijacker, hijacked):
 effects on your application's authorization system. Potentially, it might allow any user to impersonate 
 any other user and to take advantage of all their permissions.**
 
+
+## Allowing GET method for hijack views
+The hijack-specific views (hijack someone, release etc.) only accept POST requests by default. This is to avoid CSRF attacks on hijack functionality (cf. https://github.com/arteria/django-hijack/issues/84).
+However, you want to forego this protection, e.g. if they want to integrate Django Hijack in the Django admin using <https://github.com/arteria/django-hijack-admin>.
+In this case, you can set `HIJACK_ALLOW_GET_REQUESTS = True`.
+
 ## Custom view decorator
 Django Hijack's views are decorated by Django's `staff_member_required` decorator. If you have written your own 
 authorization function, or haven't installed `django.contrib.admin`, you may want to override this behaviour by 
@@ -70,27 +76,9 @@ MIDDLEWARE_CLASSES = (
 )
 ```
 
-# Custom user models
-Django Hijack supports custom user models. Just modify your custom UserAdmin class as shown in this example:
-
-```python
-# mysite/admin.py
-from hijack.admin import HijackUserAdminMixin
-
-class MyCustomUserAdmin(UserAdmin, HijackUserAdminMixin):
-    list_display = (
-        ...
-        'hijack_field',  # Hijack button
-    )
-```
-
-In addition, you should explicitly set `HIJACK_DISPLAY_ADMIN_BUTTON = False` in your project settings.
-
 # Settings overview
-## `HIJACK_DISPLAY_ADMIN_BUTTON`
-Hide or display the "Hijack" buttons in the admin backend. Default: `True`.
 ## `HIJACK_DISPLAY_WARNING`
-Hide or display the yellow notificiation bar show to hijackers. Default: `True`.
+Hide or display the yellow notification bar show to hijackers. Default: `True`.
 ## `HIJACK_USE_BOOTSTRAP`
 Whether a Bootstrap-optimized notification bar is used. Default: `False`.
 ## `HIJACK_URL_ALLOWED_ATTRIBUTES`
@@ -107,5 +95,7 @@ URL a hijacker is redirected to when starting a hijack. Default: `settings.LOGIN
 URL a hijacker is redirected to when ending a hijack. Default: `settings.LOGIN_REDIRECT_URL`.
 ## `HIJACK_AUTHORIZATION_CHECK`
 Dotted path of a function checking whether `hijacker` is allowed to hijack `hijacked`. Default: `'hijack.helpers.is_authorized_default'`.
+## `HIJACK_ALLOW_GET_REQUESTS`
+Whether hijack views should accept GET requests. Default: `False`.
 ## `HIJACK_DECORATOR`
 Dotted path of the decorator applied to the hijack views. Default: `'django.contrib.admin.views.decorators.staff_member_required'`.

@@ -3,11 +3,6 @@ from django.conf import settings as django_settings
 
 SETTINGS = (
     {
-        'name': 'HIJACK_DISPLAY_ADMIN_BUTTON',
-        'default': True,
-        'legacy_name': 'SHOW_HIJACKUSER_IN_ADMIN',
-    },
-    {
         'name': 'HIJACK_DISPLAY_WARNING',
         'default': True,
         'legacy_name': 'HIJACK_NOTIFY_ADMIN',
@@ -26,6 +21,11 @@ SETTINGS = (
         'name': 'HIJACK_AUTHORIZE_STAFF_TO_HIJACK_STAFF',
         'default': False,
         'legacy_name': 'ALLOW_STAFF_TO_HIJACK_STAFF_USER',
+    },
+    {
+        'name': 'HIJACK_ALLOW_GET_REQUESTS',
+        'default': False,
+        'legacy_name': None,
     },
     {
         'name': 'HIJACK_LOGIN_REDIRECT_URL',

@@ -22,7 +22,7 @@
   font-family: sans-serif;
 }
 
-.hijacked-warning-boostrap {
+.hijacked-warning-bootstrap {
   margin-bottom:0;
 }
 
@@ -67,5 +67,12 @@
 	top:1px;
 }
 
-.django-hijack-button-bootstrap {
+.hijacked-warning-controls-pull-right {
+	float: right;
+	margin-right: 15px;
+}
+
+.hijacked-warning-controls,
+.hijacked-warning-controls form {
+	display: inline;
 }

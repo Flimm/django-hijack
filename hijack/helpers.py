@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.core.exceptions import PermissionDenied
-from django.contrib.auth.signals import user_logged_out
+from django.contrib.auth.models import update_last_login
+from django.contrib.auth.signals import user_logged_in, user_logged_out
 from django.contrib.auth import login, load_backend, BACKEND_SESSION_KEY
 from django.dispatch import receiver
 from django.http import HttpResponseRedirect
@@ -33,22 +34,18 @@ def release_hijack(request):
         user_pk = hijack_history.pop()
         hijacker = get_object_or_404(get_user_model(), pk=user_pk)
         backend = get_used_backend(request)
-        hijacker.backend = "%s.%s" % (backend.__module__,
-                                  backend.__class__.__name__)
+        hijacker.backend = "%s.%s" % (backend.__module__, backend.__class__.__name__)
         login(request, hijacker)
     if hijack_history:
         request.session['hijack_history'] = hijack_history
         request.session['is_hijacked_user'] = True
         request.session['display_hijack_warning'] = True
     else:
-        try:
-            del request.session['hijack_history']
-            del request.session['is_hijacked_user']
-            del request.session['display_hijack_warning']
-        except KeyError:
-            pass
+        request.session.pop('hijack_history', None)
+        request.session.pop('is_hijacked_user', None)
+        request.session.pop('display_hijack_warning', None)
     request.session.modified = True
-    hijack_ended.send(sender=None, hijacker_id=hijacker.pk, hijacked_id=hijacked.pk)
+    hijack_ended.send(sender=None, hijacker_id=hijacker.pk, hijacked_id=hijacked.pk, request=request)
     return redirect_to_next(request, default_url=hijack_settings.HIJACK_LOGOUT_REDIRECT_URL)
 
 
@@ -94,24 +91,30 @@ def check_hijack_authorization(request, user):
         raise PermissionDenied
 
 
-def login_user(request, user):
+def login_user(request, hijacked):
     ''' hijack mechanism '''
-    hijack_history = [request.user._meta.pk.value_to_string(request.user)]
+    hijacker = request.user
+    hijack_history = [request.user._meta.pk.value_to_string(hijacker)]
     if request.session.get('hijack_history'):
         hijack_history = request.session['hijack_history'] + hijack_history
 
-    check_hijack_authorization(request, user)
-    hijacker = request.user
-    hijacked = user
+    check_hijack_authorization(request, hijacked)
 
     backend = get_used_backend(request)
-    user.backend = "%s.%s" % (backend.__module__, backend.__class__.__name__)
-    last_login = user.last_login  # Save last_login to reset it after hijack login
-    login(request, user)
-    user.last_login = last_login
-    user.save()
-    post_superuser_login.send(sender=None, user_id=user.pk)
-    hijack_started.send(sender=None, hijacker_id=hijacker.pk, hijacked_id=hijacked.pk)
+    hijacked.backend = "%s.%s" % (backend.__module__, backend.__class__.__name__)
+
+    # Prevent update of hijacked user last_login
+    signal_was_connected = user_logged_in.disconnect(update_last_login)
+
+    # Actually log user in
+    login(request, hijacked)
+
+    # Restore signal if needed
+    if signal_was_connected:
+        user_logged_in.connect(update_last_login)
+
+    post_superuser_login.send(sender=None, user_id=hijacked.pk)  # Send legacy signal
+    hijack_started.send(sender=None, hijacker_id=hijacker.pk, hijacked_id=hijacked.pk, request=request)  # Send official, documented signal
     request.session['hijack_history'] = hijack_history
     request.session['is_hijacked_user'] = True
     request.session['display_hijack_warning'] = True
@@ -121,10 +124,14 @@ def login_user(request, user):
 
 @receiver(user_logged_out)
 def logout_user(sender, **kwargs):
-    ''' wraps logout signal '''
+    """
+    Legacy code
+    Wraps logout signal to send deprecated "post_superuser_logout" signal
+    """
     user = kwargs['user']
     if hasattr(user, 'id'):
         post_superuser_logout.send(sender=None, user_id=user.pk)
+
 
 def redirect_to_next(request, default_url=hijack_settings.HIJACK_LOGIN_REDIRECT_URL):
     redirect_to = request.GET.get('next', '')

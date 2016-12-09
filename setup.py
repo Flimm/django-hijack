@@ -36,7 +36,7 @@ dev_requires = ['flake8', ]
 
 def read(fname):
     try:
-        return open(os.path.join(os.path.dirname(__file__), fname), 'r').read().encode("utf8")
+        return open(os.path.join(os.path.dirname(__file__), fname), 'r').read()
     except IOError:
         return u''
 
@@ -59,9 +59,9 @@ setup(name="django-hijack",
                    'Framework :: Django',
                    'License :: OSI Approved :: MIT License',
                    'Framework :: Django',
-                   'Framework :: Django :: 1.7',
                    'Framework :: Django :: 1.8',
-                   # 'Framework :: Django :: compat',
+                   'Framework :: Django :: 1.9',
+                   'Framework :: Django :: 1.10',
                    'Programming Language :: Python',
                    'Programming Language :: Python :: 2',
                    'Programming Language :: Python :: 3', ], )
